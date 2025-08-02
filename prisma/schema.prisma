@@ -1,0 +1,169 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(cuid())
+  firstName     String
+  lastName      String
+  email         String    @unique
+  password      String
+  company       String?
+  phone         String?
+  role          String    @default("entrepreneur") // entrepreneur, partner, expert
+  preferences   Json?
+  lastLogin     DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relations
+  chatHistory    ChatHistory[]
+  documents      Document[]
+  riskReports    RiskReport[]
+  complianceReports ComplianceReport[]
+  analyticsLogs  AnalyticsLog[]
+  partners      PartnerMatch[]
+
+  @@map("users")
+}
+
+model ChatHistory {
+  id        String   @id @default(cuid())
+  userId    String
+  type      String   // "user" or "assistant"
+  content   String
+  language  String   @default("en")
+  timestamp DateTime @default(now())
+
+  // Relations
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("chat_history")
+}
+
+model Document {
+  id         String   @id @default(cuid())
+  userId     String
+  type       String   // commercial-invoice, proforma-invoice, bill-of-lading, etc.
+  fields     Json     // Form field data
+  resultPath String?  // Path to generated document
+  status     String   @default("pending") // pending, processing, completed, error
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  // Relations
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("documents")
+}
+
+model RiskReport {
+  id             String   @id @default(cuid())
+  userId         String
+  country        String
+  industry       String
+  overallRisk    Int      // 0-100
+  politicalRisk  Int      // 0-100
+  economicRisk   Int      // 0-100
+  tariffRisk     Int      // 0-100
+  complianceRisk Int      // 0-100
+  marketRisk     Int      // 0-100
+  metrics        Json?    // Additional metrics like tariff rates, market size
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  // Relations
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("risk_reports")
+}
+
+model ComplianceReport {
+  id           String   @id @default(cuid())
+  userId       String
+  fileName     String
+  fileType     String
+  country      String
+  overallScore Int      // 0-100
+  issues       Json     // Array of compliance issues
+  regulations  Json     // Array of applicable regulations
+  status       String   @default("pending") // pending, analyzing, completed, error
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relations
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("compliance_reports")
+}
+
+model AnalyticsLog {
+  id        String   @id @default(cuid())
+  userId    String?
+  action    String   // Type of action performed
+  metadata  Json?    // Additional data about the action
+  timestamp DateTime @default(now())
+
+  // Relations
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@map("analytics_logs")
+}
+
+model Partner {
+  id              String   @id @default(cuid())
+  name            String
+  type            String   // manufacturer, distributor, retailer, service_provider, trading_company
+  industry        String
+  country         String
+  city            String
+  languages       Json     // Array of languages
+  certifications  Json     // Array of certifications
+  rating          Float    @default(0)
+  experience      Int      // Years in business
+  description     String
+  specialties     Json     // Array of specialties
+  minOrder        String?
+  annualRevenue   String?
+  employees       String?
+  website         String?
+  contactEmail    String?
+  contactPhone    String?
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relations
+  matches         PartnerMatch[]
+
+  @@map("partners")
+}
+
+model PartnerMatch {
+  id               String   @id @default(cuid())
+  userId           String
+  partnerId        String
+  compatibilityScore Int      // 0-100
+  isFavorite       Boolean  @default(false)
+  notes            String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  // Relations
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  partner          Partner  @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, partnerId])
+  @@map("partner_matches")
+}
